@@ -1,0 +1,161 @@
+#include <omp.h>
+#include <mpi.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define TAG 13
+
+int main(int argc, char *argv[]) {
+  double **A,*B;
+  double startTime, endTime;
+  int numElements, offset, stripSize, myrank, numnodes, N, i, j, k;
+  int numThreads, chunkSize = 10,threshold,diff;
+  
+  MPI_Init(&argc, &argv);
+  
+  MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
+  MPI_Comm_size(MPI_COMM_WORLD, &numnodes);
+  
+  N = atoi(argv[1]);
+  numThreads = atoi(argv[2]);  // difference from MPI: how many threads/rank?
+
+  omp_set_num_threads(numThreads);  // OpenMP call to set threads per rank
+  
+  // allocate A--- note that you want these to be
+  // contiguously allocated.  Workers need less memory allocated.
+  
+  if (myrank == 0) {
+ 
+    A = (double **) malloc (sizeof(double *) * N);
+    for (i = 0; i < N; i++)
+      A[i] = rand();
+  }
+  else {
+  
+    A = (double **) malloc (sizeof(double *) * N / numnodes);
+    for (i = 0; i < N / numnodes; i++)
+      A[i] = rand();
+  }
+  
+  
+  tmp = (double *) malloc (sizeof(double ) * N * N);
+  B = (double **) malloc (sizeof(double *) * N);
+  for (i = 0; i < N; i++)
+    B[i] = rand();
+  
+
+  if (myrank == 0) {
+   
+    for (i=0; i<N; i++) {
+      for (j=0; j<N; j++) {
+        A[i][j] = 1.0;
+
+      }
+    }
+  }
+  
+  // start timer
+  if (myrank == 0) {
+    startTime = MPI_Wtime();
+  }
+  
+  stripSize = N/numnodes;
+
+  // send each node its piece of A -- note could be done via MPI_Scatter
+  if (myrank == 0) {
+    offset = stripSize;
+    numElements = stripSize * N;
+    for (i=1; i<numnodes; i++) {
+      MPI_Send(A[offset], numElements, MPI_DOUBLE, i, TAG, MPI_COMM_WORLD);
+      offset += stripSize;
+    }
+  }
+  else {  // receive my part of A
+    MPI_Recv(A[0], stripSize * N, MPI_DOUBLE, 0, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  }
+  
+
+
+  
+  // do the work---this is the primary difference from the pure MPI program
+  #pragma omp parallel for shared(A,numThreads) private(i,j,k) schedule (static, chunkSize)
+  while(threshold != 0.01){
+    for (i=0; i<N; i++) {
+      for (j=0; j<N; j++) {
+	if (i==0 and j==0):
+                diff= (A[i][j]+(A[i+1][j]+A[i][j+1]))/2;
+                B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+            if (i==n-1 and j==n-1):
+                diff = (A[i][j]+(A[i-1][j]+A[i][j-1]))/2 ; 
+                  B[i]=ceil(A[i][j]-diff);
+                  A[i][j]=diff; 
+            if (i==n-1 and j==0):
+                diff = (A[i][j]+(A[i-1][j]+A[i][j+1]))/2;  
+                B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff;  
+            if (i==0 and j==n-1):
+                diff= (A[i][j]+(A[i+1][j]+A[i][j-1]))/2  ;
+                B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+            if (i==0 and j!=0 and j!=n-1):
+                diff= (A[i][j]+(A[i+1][j]+A[i][j-1]+A[i][j+1]))/2;
+                B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+            if(i!=0 and j==0 and i!=n-1):  
+                 diff= (A[i][j]+(A[i+1][j]+A[i][j-1]+A[i-1][j]))/2;
+                 B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+            if(i==n-1 and j!=0 and j!=n-1):    
+                 diff = (A[i][j]+(A[i][j+1]+A[i][j-1]+A[i-1][j]))/2;
+                 B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+                
+            if(i!=0 and i!=n-1 and j==0) :   
+                 diff = (A[i][j]+(A[i][j+1]+A[i][j-1]+A[i-1][j]))/2;
+                 B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+                
+            if(i!=0 and j!=0 and i!=n-1 and j!=n-1):
+                 diff = (A[i][j]+(A[i-1][j]+A[i+1][j]+A[i][j-1]+A[i][j+1]))/2;
+                 B[i]=ceil(A[i][j]-diff)
+                 A[i][j]=diff; 
+
+      }
+    }
+   threshold=max(B[N]);
+  }
+
+  // master receives from workers  -- note could be done via MPI_Gather
+  if (myrank == 0) {
+    offset = stripSize; 
+    numElements = stripSize * N;
+    for (i=1; i<numnodes; i++) {
+      MPI_Recv(A[offset], numElements, MPI_DOUBLE, i, TAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      offset += stripSize;
+    }
+  }
+  else { // send my contribution to C
+    MPI_Send(A[0], stripSize * N, MPI_DOUBLE, 0, TAG, MPI_COMM_WORLD);
+  }
+
+  // stop timer
+  if (myrank == 0) {
+    endTime = MPI_Wtime();
+    printf("Time is %f\n", endTime-startTime);
+  }
+  
+  // print out matrix here, if I'm the master
+  if (myrank == 0 && N < 10) {
+    for (i=0; i<N; i++) {
+      for (j=0; j<N; j++) {
+        printf("%f ", A[i][j]);
+      }
+      printf("\n");
+    }
+  }
+  
+  MPI_Finalize();
+  return 0;
+}
+
