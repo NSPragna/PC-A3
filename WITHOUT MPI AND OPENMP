@@ -1,0 +1,65 @@
+import random
+
+
+n=int(input("enter n value"))
+a=[[0 for x in range(n)] for y in range(n)] 
+b=[0 for x in range(n*n)]
+for i in range(n):
+    for j in range(n):
+      a[i][j] = random.randint(1,100)
+for i in range(n):
+    for j in range(n):
+      print(a[i][j],end="     ")   
+    print( )      
+      
+p=int(input("enter p value"))
+while(p!=0.01) :     
+   for i in range(n):
+        for j in range(n):
+            
+            if (i==0 and j==0):
+                diff = (a[i][j]+(a[i+1][j]+a[i][j+1]))/2
+                B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+            if (i==n-1 and j==n-1):
+                diff = (a[i][j]+(a[i-1][j]+a[i][j-1]))/2   
+                B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+            if (i==n-1 and j==0):
+                diff = (a[i][j]+(a[i-1][j]+a[i][j+1]))/2 
+                B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+            if (i==0 and j==n-1):
+                diff = (a[i][j]+(a[i+1][j]+a[i][j-1]))/2  
+                B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+            if (i==0 and j!=0 and j!=n-1):
+                diff = (a[i][j]+(a[i+1][j]+a[i][j-1]+a[i][j+1]))/2
+                B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+            if(i!=0 and j==0 and i!=n-1):  
+                 diff = (a[i][j]+(a[i+1][j]+a[i][j-1]+a[i-1][j]))/2
+                 B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+            if(i==n-1 and j!=0 and j!=n-1):    
+                 diff = (a[i][j]+(a[i][j+1]+a[i][j-1]+a[i-1][j]))/2
+                 B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+                
+            if(i!=0 and i!=n-1 and j==0) :   
+                 diff = (a[i][j]+(a[i][j+1]+a[i][j-1]+a[i-1][j]))/2
+                 B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+                
+            if(i!=0 and j!=0 and i!=n-1 and j!=n-1):
+                 diff = (a[i][j]+(a[i-1][j]+a[i+1][j]+a[i][j-1]+a[i][j+1]))/2
+                 B[i]=max(ceil(a[i][j],diff))
+                a[i][j]=diff
+   p=max(b[n*n])        
+
+for i in range(n):
+    for j in range(n):
+      print(a[i][j],end="     ")   
+    print( )
+
+      
